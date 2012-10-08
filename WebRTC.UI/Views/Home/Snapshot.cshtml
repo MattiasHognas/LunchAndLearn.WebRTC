@@ -1,0 +1,56 @@
+﻿@{
+    ViewBag.Title = "Snapshot";
+}
+<video autoplay width="320" height="320" id="vidCamera"></video><br/>
+<canvas width="640" height="640" id="cvsSnapshot"></canvas>
+@section scripts
+{
+    <script type="text/javascript">
+        $(function () {
+
+            var video = $('#vidCamera');
+            var canvas = $('#cvsSnapshot');
+            var ctx = canvas[0].getContext('2d');
+            var localMediaStream = null;
+
+            $('video').on('click', snapshot);
+            
+            if (navigator.getUserMedia) navigator.getUserMedia({ video: true }, onSuccess, onError);
+            else if (navigator.oGetUserMedia) navigator.oGetUserMedia({ video: true }, onSuccess, onError);
+            else if (navigator.mozGetUserMedia) navigator.mozGetUserMedia({ video: true }, onSuccess, onError);
+            else if (navigator.webkitGetUserMedia) navigator.webkitGetUserMedia({ video: true }, onSuccess, onError);
+            else if (navigator.msGetUserMedia) navigator.msGetUserMedia({ video: true, audio: false }, onSuccess, onError);
+            else alert('getUserMedia() not available from your Web browser!');
+            
+            function snapshot() {
+                if (localMediaStream) {
+                    ctx.drawImage(video[0], 0, 0);
+                    canvas.on('click', function () {
+                        var img = this.toDataURL("image/png");
+                        document.write('<img src="' + img + '"/>');
+                    });
+                }
+            }
+
+            function onSuccess(stream) {
+                localMediaStream = stream;
+                stream.onended = onError;
+                if (window.webkitURL) {
+                    video.attr('src', window.webkitURL.createObjectURL(stream));
+                    video.play();
+                } else if (navigator.mozGetUserMedia) {
+                    video.src = stream;
+                    video.play();
+                }
+                else if (window.URL)
+                    video.src = window.URL.createObjectURL(stream);
+                else
+                    video.src = stream;
+            }
+
+            function onError() {
+                alert('error');
+            }
+        });
+    </script>
+}

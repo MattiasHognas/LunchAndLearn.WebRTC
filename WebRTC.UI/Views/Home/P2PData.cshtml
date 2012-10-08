@@ -1,0 +1,185 @@
+﻿@{
+    ViewBag.Title = "Peer to peer";
+}
+<br />
+<div id="divLogin">
+    <input type="text" id="txtUsername" />
+    <button id="btnLogin">Login</button>
+</div>
+<div id="divChat" style="display:none;">
+    <ul id="ulHistory">
+    </ul>
+    <input type="text" id="txtMessage" />
+    <button id="btnChat">Chat</button>
+</div>
+<ul id="contactList">
+</ul>
+<ul id="stateList">
+</ul>
+@section scripts
+{
+    <script src="~/Scripts/jquery.signalR-0.5.3.js"></script>
+    <script src="@Url.Content("~/signalR/hubs")"> </script>
+    <script type="text/javascript">
+        $(function () {
+
+            var peerConnCreated = false;
+            var peerConn = null;
+            var clientId = null;
+            var myname = '';
+            var hisname = '';
+            var myJsep;
+            var mySdp;
+            var dc = null;
+
+            jQuery.fn.addLog = function (txt) {
+                this.each(function () {
+                    $(this).append('<li>' + txt + '</li>');
+                });
+            };
+
+            $('#stateList').addLog('initiating..');
+
+            var connection = $.connection.socket;
+            $.connection.hub.logging = true;
+            $.connection.hub.error(function (error) {
+                $('#stateList').addLog('error');
+                console.log(error);
+            });
+            $.connection.hub.stateChanged(function (change) {
+                $('#stateList').addLog('state changed:' + change.newState);
+                console.log('state changed:' + change.newState);
+            });
+            $.connection.hub.start({ transport: 'auto' })
+                .done(function () {
+                    console.log('hub started');
+                    $('#stateList').addLog('hub started');
+                    $('#btnLogin').on('click', function () {
+                        $('#stateList').addLog('logging in..');
+                        login($('#txtUsername').val());
+                    });
+                });
+            connection.getMessage = function (message) {
+                if (message != null && message.clientid != null)
+                    if (message.clientid != clientId) {
+                        $('#stateList').addLog('message:' + JSON.stringify(message));
+                        handleRtcMessage(message);
+                    }
+            };
+            
+            function login(username) {
+                clientId = username;
+                var message = { 'clientid': clientId, 'service': 'rtc', 'mtype': 'online', 'username': username };
+                myname = username;
+                $('#stateList').addLog('sent:' + JSON.stringify(message));
+                connection.addMessage(message);
+                if (!peerConnCreated) createPeerConnection();
+            }
+
+            function iceCallback(canditate, isLastCandidate) {
+                if (canditate) {
+                    $('#stateList').addLog('ice canditate');
+                    var message = {
+                        'clientid': clientId, 'service': 'rtc', 'mtype': 'canditate', 'sndr': myname, 'rcpt': hisname,
+                        'label': canditate.label, 'cand': canditate.toSdp()
+                    };
+                    $('#stateList').addLog('sent:' + JSON.stringify(message));
+                    connection.addMessage(message);
+                }
+            }
+
+            function onSessionConnecting(message) {
+                $('#stateList').addLog('session connecting..');
+            }
+
+            function onSessionOpened(message) {
+                dc = peerConn.createDataChannel("chat");
+                dc.onopen = function () {
+                    $('#divChat').show();
+                    $('#divLogin').hide();
+                    $('#btnChat').on('click', function (e) {
+                        dc.send($('#txtMessage').val());
+                    });
+                };
+                dc.onmessage = function (evt) {
+                    $('#ulHistory').append('<li>' + evt.data + '</li>');
+                };
+                $('#stateList').addLog('session opened');
+            }
+
+            function createPeerConnection() {
+                if (peerConnCreated) return;
+                //peerConn = new webkitPeerConnection00(null, iceCallback);
+                peerConn = new webkitPeerConnection00('STUN stun.l.google.com:19302', iceCallback);
+                peerConn.onconnecting = onSessionConnecting;
+                peerConn.onopen = onSessionOpened;
+                $('#stateList').addLog('peer connection created');
+                peerConnCreated = true;
+            }
+
+            function dialUser(user) {
+                if (!peerConnCreated) createPeerConnection();
+                hisname = user;
+                var localOffer = peerConn.createOffer({ has_audio: true, has_video: true });
+                peerConn.setLocalDescription(peerConn.SDP_OFFER, localOffer);
+                mySdp = peerConn.localDescription;
+                myJsep = mySdp.toSdp();
+                var message = { 'clientid': clientId, 'service': 'rtc', 'mtype': 'call', 'sndr': myname, 'rcpt': hisname, 'jsepdata': myJsep };
+                $('#stateList').addLog('sent:' + JSON.stringify(message));
+                connection.addMessage(message);
+                peerConn.startIce();
+                $('#stateList').addLog('ice started');
+            }
+
+            //handle the message from the sip server
+            //There is a new connection from our peer so turn on the camera 
+            //and relay the stream to peer.
+            function handleRtcMessage(message) {
+                $('#stateList').addLog('recieved rtc message');
+                switch (message.mtype) {
+                    case 'online':
+                        $('#stateList').addLog('new user online..');
+                        var li = $('<li>' + message.username + '</li>');
+                        li.on('click', function (e) {
+                            dialUser(message.username);
+                        });
+                        $('#contactList').append(li);
+                        break;
+
+                    case 'call':
+                        $('#stateList').addLog('incoming call..');
+                        if (!peerConnCreated) createPeerConnection();
+                        peerConn.setRemoteDescription(peerConn.SDP_OFFER, new SessionDescription(message.jsepdata));
+                        hisname = message.sndr;
+                        var remoteOffer = peerConn.remoteDescription;
+                        $('#stateList').addLog('remoteOffer' + remoteOffer.toSdp());
+                        var localAnswer = peerConn.createAnswer(remoteOffer.toSdp(), { has_audio: true, has_video: true });
+                        peerConn.setLocalDescription(peerConn.SDP_ANSWER, localAnswer);
+                        var messageNew = { 'clientid': clientId, 'service': 'rtc', 'mtype': 'pickup', 'sndr': myname, 'rcpt': hisname, 'jsepdata': localAnswer.toSdp() };
+                        $('#stateList').addLog('sent:' + JSON.stringify(messageNew));
+                        connection.addMessage(messageNew);
+                        $('#stateList').addLog(localAnswer.toSdp());
+                        peerConn.startIce();
+                        break;
+
+                    case 'pickup':
+                        $('#stateList').addLog('recvd pickup');
+                        peerConn.setRemoteDescription(peerConn.SDP_ANSWER, new SessionDescription(message.jsepdata));
+                        hisname = message.sndr
+                        $('#stateList').addLog('chat setup');
+                        break;
+
+                    case 'canditate':
+                        $('#stateList').addLog('recvd canditate');
+                        var canditate = new IceCandidate(message.label, message.cand);
+                        peerConn.processIceMessage(canditate);
+                        break;
+
+                    case 'bye':
+                        $('#stateList').addLog('recvd bye');
+                        break;
+                }
+            }
+        });
+    </script>
+}

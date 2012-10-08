@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebRTC.UI", "WebRTC.UI\WebRTC.UI.csproj", "{F872DED5-4098-4EF0-9D4E-018C9881B55C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebRTC.WebSocketServer", "WebRTC.WebSocketServer\WebRTC.WebSocketServer.csproj", "{B3AA8C64-1D8F-4CEE-B352-162700305F7A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{E5719E60-7CF6-4F51-8E83-B4F7B7889A35}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F872DED5-4098-4EF0-9D4E-018C9881B55C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F872DED5-4098-4EF0-9D4E-018C9881B55C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F872DED5-4098-4EF0-9D4E-018C9881B55C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F872DED5-4098-4EF0-9D4E-018C9881B55C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3AA8C64-1D8F-4CEE-B352-162700305F7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3AA8C64-1D8F-4CEE-B352-162700305F7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3AA8C64-1D8F-4CEE-B352-162700305F7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3AA8C64-1D8F-4CEE-B352-162700305F7A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
