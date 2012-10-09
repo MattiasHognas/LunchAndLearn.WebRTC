@@ -131,9 +131,6 @@
                 $('#stateList').addLog('ice started');
             }
 
-            //handle the message from the sip server
-            //There is a new connection from our peer so turn on the camera 
-            //and relay the stream to peer.
             function handleRtcMessage(message) {
                 $('#stateList').addLog('recieved rtc message');
                 switch (message.mtype) {
@@ -165,7 +162,7 @@
                     case 'pickup':
                         $('#stateList').addLog('recvd pickup');
                         peerConn.setRemoteDescription(peerConn.SDP_ANSWER, new SessionDescription(message.jsepdata));
-                        hisname = message.sndr
+                        hisname = message.sndr;
                         $('#stateList').addLog('chat setup');
                         break;
 
