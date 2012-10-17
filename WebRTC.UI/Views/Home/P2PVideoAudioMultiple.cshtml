@@ -1,0 +1,225 @@
+﻿@{
+    ViewBag.Title = "Peer to peer";
+}
+<video autoplay width="320" height="320" id="vidSource"></video>
+<div id="divPeers">
+</div>
+<div id="divLogin">
+    <input type="text" id="txtUsername" />
+    <button id="btnLogin">Login</button>
+</div>
+<ul id="contactList">
+</ul>
+@section scripts
+{
+    <script src="~/Scripts/jquery.signalR-0.5.3.js"></script>
+    <script src="@Url.Content("~/signalR/hubs")"> </script>
+    <script type="text/javascript">
+        $(function () {
+
+            var peers = [];
+            var stunServer = 'STUN stun.l.google.com:19302';
+            var username = '';
+            var userid = '';
+            var userstream = null;
+
+            var connection = $.connection.multiHub;
+            $.connection.hub.logging = true;
+            $.connection.hub.error(function (error) {
+                console.log(error);
+            });
+            $.connection.hub.stateChanged(function (change) {
+                console.log('state changed:' + change.newState);
+            });
+            $.connection.hub.start({ transport: 'auto' })
+                .done(function () {
+                    console.log('hub started');
+                    navigator.getUserMedia_ = (navigator.getUserMedia
+                        || navigator.oGetUserMedia
+                        || navigator.mozGetUserMedia
+                        || navigator.webkitGetUserMedia
+                        || navigator.msGetUserMedia);
+                    if (!!navigator.getUserMedia_) {
+                        navigator.getUserMedia_({ video: true, audio: true },
+                            function (strm) {
+                                userstream = strm;
+                                console.log('attached video/audio');
+                                $('#btnLogin').on('click', function () {
+                                    username = $('#txtUsername').val();
+                                    $('#divLogin').hide();
+                                    connection.login({ from: username });
+                                });
+                                $('#vidSource').css('opacity', 1);
+                                $('#vidSource').attr('src', window.webkitURL.createObjectURL(userstream));
+                                $.each(peers, function () {
+                                    this.peerConnection().addStream(userstream);
+                                });
+                                console.log('local stream added');
+                            },
+                            function (error) {
+                                console.error('An error occurred: [CODE ' + error.code + ']');
+                            }
+                        );
+                    }
+                });
+            connection.onanswer = function (message) {
+                addUsers(message.users);
+                peers[message.from].gotAnswer(message);
+            };
+            connection.onoffer = function (message) {
+                addUsers(message.users);
+                peers[message.from].gotOffer(message);
+            };
+            connection.oncandidate = function (message) {
+                addUsers(message.users);
+                peers[message.from].gotCandidate(message);
+            };
+            connection.onusers = function (message) {
+                addUsers(message.users);
+            };
+
+            function addUsers(users) {
+                $('#contactList').empty();
+                $.each(users, function (key, value) {
+                    if (value == username)
+                        userid = key;
+                    else {
+                        var remoteId = key;
+                        var li = $('<li>' + remoteId + '</li>');
+                        if (!peers[remoteId]) {
+                            var p = new peer(userid, remoteId, stunServer, userstream);
+                            p.addListener('onIceCandidate', function (sender, reciever, label, sdp) {
+                                var m = {
+                                    'from': sender,
+                                    'to': reciever,
+                                    'label': label,
+                                    'data': sdp
+                                };
+                                connection.candidate(m);
+                            });
+                            p.addListener('onGotOffer', function (sender, reciever, sdp) {
+                                var m = { 'from': sender, 'to': reciever, 'data': sdp };
+                                connection.answer(m);
+                            });
+                            p.addListener('onSendOffer', function (sender, reciever, sdp) {
+                                var m = { 'from': sender, 'to': reciever, 'data': sdp };
+                                connection.offer(m);
+                            });
+                            p.addListener('onRemoteStreamRemoved', function () {
+                                $('#vidPeer' + remoteId).attr('src', '');
+                                $('#vidPeer' + remoteId).remove();
+                            });
+                            p.addListener('onRemoteStreamAdded', function (event) {
+                                var video = $('<video autoplay width="320" height="320" id="vidPeer' + remoteId + '" style="opacity: 1"></video>');
+                                $('#divPeers').append(video);
+                                video.attr('src', window.webkitURL.createObjectURL(event.stream));
+                            });
+                            peers[remoteId] = p;
+                        }
+                        li.on('click', function (e) {
+                            peers[remoteId].sendOffer();
+                        });
+                        $('#contactList').append(li);
+                    }
+                });
+            }
+
+            function peer(sender, reciever, stun, stream) {
+                this._sender = sender;
+                this._reciever = reciever;
+                this._stun = stun;
+                this._events = [];
+                this._stream = stream;
+                this._peerConnection = null;
+                this.addListener = function (eventName, callback) {
+                    if (this._events[eventName] == undefined)
+                        this._events[eventName] = [];
+                    this._events[eventName].push(callback);
+                };
+                this.raiseEvent = function (eventName) {
+                    var args = (arguments.length > 1)
+                        ? Array.prototype.slice.call(arguments).slice(1, arguments.length)
+                        : null;
+                    if (this._events[eventName] != undefined)
+                        for (var i = 0, l = this._events[eventName].length; i < l; i++)
+                            this._events[eventName][i].apply(null, args);
+                };
+                this.peerConnection = function () {
+                    var base = this;
+                    if (this._peerConnection == null) {
+                        this._peerConnection = new webkitPeerConnection00(base._stun, function (canditate, hasMoreCandidates) {
+                            base.onIceCandidate(canditate, hasMoreCandidates);
+                        });
+                        this._peerConnection.onconnecting = function (message) {
+                            base.onSessionConnecting(message);
+                        };
+                        this._peerConnection.onopen = function (message) {
+                            base.onSessionConnecting(message);
+                        };
+                        this._peerConnection.onaddstream = function (event) {
+                            base.onRemoteStreamAdded(event);
+                        };
+                        this._peerConnection.onremovestream = function (event) {
+                            base.onRemoteStreamRemoved(event);
+                        };
+                        base._peerConnection.addStream(base._stream);
+                    }
+                    return this._peerConnection;
+                };
+                this.onIceCandidate = function (canditate, hasMoreCandidates) {
+                    if (!hasMoreCandidates)
+                        console.log("onIceCandidate: End of candidates");
+                    if (canditate) {
+                        console.log('onIceCandidate');
+                        this.raiseEvent('onIceCandidate', this._sender, this._reciever, canditate.label, canditate.toSdp());
+                    }
+                };
+                this.onSessionConnecting = function (message) {
+                    console.log('onSessionConnecting');
+                    this.raiseEvent('onSessionConnecting', message);
+                };
+                this.onSessionOpened = function (message) {
+                    console.log('onSessionOpened');
+                    this.raiseEvent('onSessionOpened', message);
+                };
+                this.onRemoteStreamAdded = function (event) {
+                    console.log('onRemoteStreamAdded');
+                    this.raiseEvent('onRemoteStreamAdded', event);
+                };
+                this.onRemoteStreamRemoved = function (event) {
+                    this.peerConnection = null;
+                    console.log('onRemoteStreamRemoved');
+                    this.raiseEvent('onRemoteStreamRemoved', event);
+                };
+                this.sendOffer = function () {
+                    var localOffer = this.peerConnection().createOffer({ has_audio: true, has_video: true });
+                    this.peerConnection().setLocalDescription(this.peerConnection().SDP_OFFER, localOffer);
+                    var localDescription = this.peerConnection().localDescription;
+                    this.peerConnection().startIce();
+                    console.log('sendOffer');
+                    this.raiseEvent('onSendOffer', this._sender, this._reciever, localDescription.toSdp());
+                };
+                this.gotOffer = function (message) {
+                    this.peerConnection().setRemoteDescription(this.peerConnection().SDP_OFFER, new window.SessionDescription(message.data));
+                    var remoteOffer = this.peerConnection().remoteDescription;
+                    var localAnswer = this.peerConnection().createAnswer(remoteOffer.toSdp(), { has_audio: true, has_video: true });
+                    this.peerConnection().setLocalDescription(this.peerConnection().SDP_ANSWER, localAnswer);
+                    this.peerConnection().startIce();
+                    console.log('gotOffer');
+                    this.raiseEvent('onGotOffer', this._sender, this._reciever, localAnswer.toSdp());
+                };
+                this.gotAnswer = function (message) {
+                    this.peerConnection().setRemoteDescription(this.peerConnection().SDP_ANSWER, new window.SessionDescription(message.data));
+                    console.log('gotAnswer');
+                    this.raiseEvent('onGotAnswer', message);
+                };
+                this.gotCandidate = function (message) {
+                    var canditate = new window.IceCandidate(message.label, message.data);
+                    this.peerConnection().processIceMessage(canditate);
+                    console.log('gotCandidate');
+                    this.raiseEvent('onGotCandidate', canditate, message);
+                };
+            }
+        });
+    </script>
+}

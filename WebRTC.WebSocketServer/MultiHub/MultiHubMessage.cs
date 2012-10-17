@@ -1,8 +1,8 @@
 using Newtonsoft.Json;
 
-namespace WebRTC.WebSocketServer
+namespace WebRTC.WebSocketServer.MultiHub
 {
-    public class SocketMessage
+    public class MultiHubMessage
     {
         [JsonProperty("clientid")]
         public string ClientId { get; set; }

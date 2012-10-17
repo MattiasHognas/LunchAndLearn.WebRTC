@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace WebRTC.UI
+﻿namespace WebRTC.UI.App_Start
 {
     public static class AuthConfig
     {

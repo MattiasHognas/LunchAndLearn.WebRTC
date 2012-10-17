@@ -13,7 +13,7 @@
             var ctx = canvas[0].getContext('2d');
             var localMediaStream = null;
 
-            $('video').on('click', snapshot);
+            video.on('click', snapshot);
             
             if (navigator.getUserMedia) navigator.getUserMedia({ video: true }, onSuccess, onError);
             else if (navigator.oGetUserMedia) navigator.oGetUserMedia({ video: true }, onSuccess, onError);
@@ -35,13 +35,10 @@
             function onSuccess(stream) {
                 localMediaStream = stream;
                 stream.onended = onError;
-                if (window.webkitURL) {
+                if (window.webkitURL)
                     video.attr('src', window.webkitURL.createObjectURL(stream));
-                    video.play();
-                } else if (navigator.mozGetUserMedia) {
+                else if (navigator.mozGetUserMedia)
                     video.src = stream;
-                    video.play();
-                }
                 else if (window.URL)
                     video.src = window.URL.createObjectURL(stream);
                 else

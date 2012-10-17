@@ -37,7 +37,7 @@
 
             $('#stateList').addLog('initiating..');
 
-            var connection = $.connection.socket;
+            var connection = $.connection.simpleHub;
             $.connection.hub.logging = true;
             $.connection.hub.error(function (error) {
                 $('#stateList').addLog('error');

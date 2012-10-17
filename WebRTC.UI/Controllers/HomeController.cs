@@ -18,6 +18,11 @@ namespace WebRTC.UI.Controllers
             return View();
         }
 
+        public ActionResult P2PVideoAudioMultiple()
+        {
+            return View();
+        }
+
         public ActionResult P2PData()
         {
             return View();

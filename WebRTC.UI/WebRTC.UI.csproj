@@ -188,6 +188,7 @@
     <Content Include="Views\Web.config" />
     <Content Include="Views\Home\Snapshot.cshtml" />
     <Content Include="Views\Home\P2PData.cshtml" />
+    <Content Include="Views\Home\P2PVideoAudioMultiple.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
